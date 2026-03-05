@@ -1,0 +1,59 @@
+name: Release SEA Binary
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x64
+          # - os: macos-latest
+          #   platform: darwin-arm64
+          # - os: windows-latest
+          #   platform: win-x64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install esbuild
+        run: npm install -g esbuild
+
+      - name: Bundle
+        run: |
+          mkdir -p dist
+          esbuild sample-app/index.js --bundle --platform=node --outfile=dist/bundle.js
+
+      - name: Generate SEA blob
+        run: |
+          cat > sea-config.json << 'SEAEOF'
+          {
+            "main": "dist/bundle.js",
+            "output": "dist/sea-prep.blob",
+            "disableExperimentalSEAWarning": true,
+            "useCodeCache": true
+          }
+          SEAEOF
+          node --experimental-sea-config sea-config.json
+
+      - name: Create binary
+        run: |
+          cp $(command -v node) dist/sample-app
+          npx postject dist/sample-app NODE_SEA_BLOB dist/sea-prep.blob \
+            --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/sample-app
