@@ -1,5 +1,5 @@
 // test app
-var x = 1;
+var x = 2;
 function hello(name) {
-    return "Hello, " + name;
+    return "Hello, " + name + "!";
 }
